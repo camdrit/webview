@@ -120,10 +120,10 @@ WEBVIEW_API void webview_return(webview_t w, const char *seq, int status,
 #ifndef WEBVIEW_HEADER
 
 #if !defined(WEBVIEW_GTK) && !defined(WEBVIEW_COCOA) && !defined(WEBVIEW_EDGE)
-#if defined(__APPLE__)
-#define WEBVIEW_COCOA
-#elif defined(__unix__)
+#if defined(__linux__)
 #define WEBVIEW_GTK
+#elif defined(__APPLE__)
+#define WEBVIEW_COCOA
 #elif defined(_WIN32)
 #define WEBVIEW_EDGE
 #else
@@ -978,6 +978,16 @@ public:
     m_webview->Navigate(wurl.c_str());
   }
 
+  void set_background_color(COLORREF color, bool isTransparent) {
+    COREWEBVIEW2_COLOR m_color = {
+        isTransparent ? 0 : 255, 
+        GetRValue(color),
+        GetGValue(color), 
+        GetBValue(color)
+    };
+      m_controller->put_DefaultBackgroundColor(m_color);
+  }
+
   void init(const std::string js) {
     auto wjs = winrt::to_hstring(js);
     m_webview->AddScriptToExecuteOnDocumentCreated(wjs.c_str(), nullptr);
@@ -1012,7 +1022,7 @@ private:
     HRESULT res = CreateCoreWebView2EnvironmentWithOptions(
         nullptr, userDataFolder, nullptr,
         new webview2_com_handler(wnd, cb,
-                                 [&](ICoreWebView2Controller *controller) {
+                                 [&](ICoreWebView2Controller2 *controller) {
                                    m_controller = controller;
                                    m_controller->get_CoreWebView2(&m_webview);
                                    m_webview->AddRef();
@@ -1046,7 +1056,8 @@ private:
   POINT m_maxsz = POINT{0, 0};
   DWORD m_main_thread = GetCurrentThreadId();
   ICoreWebView2 *m_webview = nullptr;
-  ICoreWebView2Controller *m_controller = nullptr;
+  ICoreWebView2Controller2 *m_controller = nullptr;
+  ICoreWebView2EnvironmentOptions *m_options = nullptr;
 
   class webview2_com_handler
       : public ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler,
@@ -1054,7 +1065,7 @@ private:
         public ICoreWebView2WebMessageReceivedEventHandler,
         public ICoreWebView2PermissionRequestedEventHandler {
     using webview2_com_handler_cb_t =
-        std::function<void(ICoreWebView2Controller *)>;
+        std::function<void(ICoreWebView2Controller2 *)>;
 
   public:
     webview2_com_handler(HWND hwnd, msg_cb_t msgCb,
@@ -1071,7 +1082,7 @@ private:
       return S_OK;
     }
     HRESULT STDMETHODCALLTYPE Invoke(HRESULT res,
-                                     ICoreWebView2Controller *controller) {
+                                     ICoreWebView2Controller2 *controller) {
       controller->AddRef();
 
       ICoreWebView2 *webview;
@@ -1126,7 +1137,7 @@ public:
   void navigate(const std::string url) {
     if (url == "") {
       browser_engine::navigate("data:text/html," +
-                               url_encode("<html><body></body></html>"));
+                               url_encode("<html><body>Hello</body></html>"));
       return;
     }
     browser_engine::navigate(url);
